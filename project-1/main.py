@@ -1,10 +1,6 @@
 # #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-# @Updated Date  : 2024/3/13
-# @Author        : Huishi Luo, hsluo2000@gmail.com
-# @File          : main.py
-"""
+
 import os
 import argparse
 import numpy as np
@@ -12,10 +8,11 @@ import pandas as pd
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import LabelEncoder, KBinsDiscretizer
 from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier, BaggingClassifier
 from sklearn.metrics import accuracy_score, f1_score, mean_absolute_error, classification_report
 import pickle
-from sklearn.preprocessing import OrdinalEncoder
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.metrics import confusion_matrix, classification_report
 
 
 class DataPreprocessor:
@@ -26,42 +23,15 @@ class DataPreprocessor:
         """
         self.use_cols = use_cols
 
+        # 原始数据中的稠密特征，即已被归一化的特征
         dense_cols = ['Product_Info_4', 'Ins_Age', 'Ht', 'Wt', 'BMI', 'Employment_Info_1', 'Employment_Info_4',
                       'Employment_Info_6', 'Insurance_History_5', 'Family_Hist_2', 'Family_Hist_3', 'Family_Hist_4',
-                      'Family_Hist_5']  # 原始数据中的稠密特征，即已被归一化的特征
-        self.dense_cols = [col for col in use_cols if col in dense_cols]  # 只保留需要使用的特征
+                      'Family_Hist_5']
+        # 只保留需要使用的特征
+        self.dense_cols = [col for col in use_cols if col in dense_cols]
         self.sparse_cols = [col for col in use_cols if col not in dense_cols]
         # 只对str类的稀疏特征进行编码，其他整型的稀疏特征不处理
         self.encode_cols = ['Product_Info_2'] if 'Product_Info_2' in use_cols else []
-
-        self.dummies = ['Product_Info_1', 'Product_Info_2', 'Product_Info_5', 'Product_Info_6', 'Product_Info_7',
-                        'Employment_Info_3', 'Employment_Info_5', 'InsuredInfo_1', 'InsuredInfo_2', 'InsuredInfo_3',
-                        'InsuredInfo_4', 'InsuredInfo_5', 'InsuredInfo_6', 'InsuredInfo_7', 'Insurance_History_1',
-                        'Insurance_History_2', 'Insurance_History_3', 'Insurance_History_4', 'Insurance_History_7',
-                        'Insurance_History_8', 'Insurance_History_9', 'Family_Hist_1', 'Medical_History_3',
-                        'Medical_History_4', 'Medical_History_5', 'Medical_History_6', 'Medical_History_7',
-                        'Medical_History_8', 'Medical_History_9', 'Medical_History_11', 'Medical_History_12',
-                        'Medical_History_13', 'Medical_History_14', 'Medical_History_16', 'Medical_History_17',
-                        'Medical_History_18', 'Medical_History_19', 'Medical_History_20', 'Medical_History_21',
-                        'Medical_History_22', 'Medical_History_23', 'Medical_History_25', 'Medical_History_26',
-                        'Medical_History_27', 'Medical_History_28', 'Medical_History_29', 'Medical_History_30',
-                        'Medical_History_31', 'Medical_History_33', 'Medical_History_34', 'Medical_History_35',
-                        'Medical_History_36', 'Medical_History_37', 'Medical_History_38', 'Medical_History_39',
-                        'Medical_History_40', 'Medical_History_41', 'Medical_Keyword_1', 'Medical_Keyword_2',
-                        'Medical_Keyword_3', 'Medical_Keyword_4', 'Medical_Keyword_5', 'Medical_Keyword_6',
-                        'Medical_Keyword_7', 'Medical_Keyword_8', 'Medical_Keyword_9', 'Medical_Keyword_10',
-                        'Medical_Keyword_11', 'Medical_Keyword_12', 'Medical_Keyword_13', 'Medical_Keyword_14',
-                        'Medical_Keyword_15', 'Medical_Keyword_16', 'Medical_Keyword_17', 'Medical_Keyword_18',
-                        'Medical_Keyword_19', 'Medical_Keyword_20', 'Medical_Keyword_21', 'Medical_Keyword_22',
-                        'Medical_Keyword_23', 'Medical_Keyword_24', 'Medical_Keyword_25', 'Medical_Keyword_26',
-                        'Medical_Keyword_27', 'Medical_Keyword_28', 'Medical_Keyword_29', 'Medical_Keyword_30',
-                        'Medical_Keyword_31', 'Medical_Keyword_32', 'Medical_Keyword_33', 'Medical_Keyword_34',
-                        'Medical_Keyword_35', 'Medical_Keyword_36', 'Medical_Keyword_37', 'Medical_Keyword_38',
-                        'Medical_Keyword_39', 'Medical_Keyword_40', 'Medical_Keyword_41', 'Medical_Keyword_42',
-                        'Medical_Keyword_43', 'Medical_Keyword_44', 'Medical_Keyword_45', 'Medical_Keyword_46',
-                        'Medical_Keyword_47', 'Medical_Keyword_48']
-
-
 
         # todo: 特征应该如何处理？能否利用现有特征构造新的特征？
         # 对于空值，稠密特征使用中位数填充，稀疏特征使用最频繁值填充
@@ -70,9 +40,10 @@ class DataPreprocessor:
 
         # todo: 离散化稠密特征的方式有很多种，例如按照分位数分桶，按照等距分桶等，应该如何选择？
         # 稠密特征离散化（即分桶），部分稀疏特征可采用编码方式处理
-        self.kbins = KBinsDiscretizer(n_bins=5, encode='ordinal', strategy='uniform')
+        self.kbins = KBinsDiscretizer(n_bins=5, encode='ordinal', strategy='quantile')
         self.encoders = {col: LabelEncoder() for col in self.encode_cols}
 
+    # 使用训练数据集拟合预处理器，包括填充缺失值、离散化稠密特征和编码稀疏特征
     def fit(self, df):
         # 对稠密特征的空值填充操作进行fit
         self.dense_imputer.fit(df[self.dense_cols])
@@ -88,6 +59,7 @@ class DataPreprocessor:
         for col in self.encode_cols:
             self.encoders[col].fit(self.sparse_imputers[col].transform(df[[col]]))
 
+    # 将预处理应用到数据集上，包括填充缺失值、离散化和编码
     def transform(self, df):
         df = df[self.use_cols].copy()  # 仅使用指定的特征
 
@@ -108,13 +80,19 @@ class DataPreprocessor:
 def get_model(model_name, config=None):
     # todo: 如何选择合适的模型？模型的超参数如何确定？
     if model_name == 'random_forest':
+        # return AdaBoostClassifier(base_estimator=DecisionTreeClassifier(max_depth=5),
+        #                          n_estimators=args.n_estimators,
+        #                          random_state=config.random_seed)
+        return BaggingClassifier(base_estimator=DecisionTreeClassifier(max_depth=10),
+                                 n_estimators=args.n_estimators,
+                                 random_state=config.random_seed)
         # 随机森林分类器
-        return RandomForestClassifier(n_estimators=args.n_estimators,
-                                      criterion='gini',
-                                      max_depth=config.max_depth,
-                                      min_samples_split=config.min_samples_split,
-                                      bootstrap=True,
-                                      random_state=config.random_seed)
+        # return RandomForestClassifier(n_estimators=args.n_estimators,
+        #                               criterion='gini',
+        #                               max_depth=config.max_depth,
+        #                               min_samples_split=config.min_samples_split,
+        #                               bootstrap=True,
+        #                               random_state=config.random_seed)
     else:
         raise ValueError(f'Invalid model name: {model_name}')
 
@@ -164,7 +142,8 @@ def load_data(data_path):
                     'Product_Info_3', 'Product_Info_4', 'Ins_Age', 'Wt', 'BMI', 'Employment_Info_1',
                     'Employment_Info_2', 'Employment_Info_4', 'Employment_Info_6', 'Medical_History_1']
         preprocessor = DataPreprocessor(use_cols)
-        preprocessor.fit(df)  # 【重要】在实际应用中，是无法知道test数据全局分布的，所以fit只能在train数据上进行；利用train数据的分布，对test数据进行transform
+        # 【重要】在实际应用中，是无法知道test数据全局分布的，所以fit只能在train数据上进行；利用train数据的分布，对test数据进行transform
+        preprocessor.fit(df)
 
     X = preprocessor.transform(df)
     return X, y
@@ -201,6 +180,9 @@ def test(test_data_path, model):
     print('Test accuracy = {:.4}, f1_score = {:.4}, mae = {:.4f}'.format(
         test_metric['accuracy'], test_metric['micro_f1_score'], test_metric['mae']))
     print(test_metric['report'])
+
+    print(confusion_matrix(y, pred))
+    print(classification_report(y, pred))
 
 
 def get_args():
