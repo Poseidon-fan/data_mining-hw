@@ -17,6 +17,7 @@ from sklearn.metrics import accuracy_score, f1_score, mean_absolute_error, class
 import pickle
 from sklearn.preprocessing import OrdinalEncoder
 
+
 class DataPreprocessor:
     def __init__(self, use_cols):
         """
@@ -32,6 +33,35 @@ class DataPreprocessor:
         self.sparse_cols = [col for col in use_cols if col not in dense_cols]
         # 只对str类的稀疏特征进行编码，其他整型的稀疏特征不处理
         self.encode_cols = ['Product_Info_2'] if 'Product_Info_2' in use_cols else []
+
+        self.dummies = ['Product_Info_1', 'Product_Info_2', 'Product_Info_5', 'Product_Info_6', 'Product_Info_7',
+                        'Employment_Info_3', 'Employment_Info_5', 'InsuredInfo_1', 'InsuredInfo_2', 'InsuredInfo_3',
+                        'InsuredInfo_4', 'InsuredInfo_5', 'InsuredInfo_6', 'InsuredInfo_7', 'Insurance_History_1',
+                        'Insurance_History_2', 'Insurance_History_3', 'Insurance_History_4', 'Insurance_History_7',
+                        'Insurance_History_8', 'Insurance_History_9', 'Family_Hist_1', 'Medical_History_3',
+                        'Medical_History_4', 'Medical_History_5', 'Medical_History_6', 'Medical_History_7',
+                        'Medical_History_8', 'Medical_History_9', 'Medical_History_11', 'Medical_History_12',
+                        'Medical_History_13', 'Medical_History_14', 'Medical_History_16', 'Medical_History_17',
+                        'Medical_History_18', 'Medical_History_19', 'Medical_History_20', 'Medical_History_21',
+                        'Medical_History_22', 'Medical_History_23', 'Medical_History_25', 'Medical_History_26',
+                        'Medical_History_27', 'Medical_History_28', 'Medical_History_29', 'Medical_History_30',
+                        'Medical_History_31', 'Medical_History_33', 'Medical_History_34', 'Medical_History_35',
+                        'Medical_History_36', 'Medical_History_37', 'Medical_History_38', 'Medical_History_39',
+                        'Medical_History_40', 'Medical_History_41', 'Medical_Keyword_1', 'Medical_Keyword_2',
+                        'Medical_Keyword_3', 'Medical_Keyword_4', 'Medical_Keyword_5', 'Medical_Keyword_6',
+                        'Medical_Keyword_7', 'Medical_Keyword_8', 'Medical_Keyword_9', 'Medical_Keyword_10',
+                        'Medical_Keyword_11', 'Medical_Keyword_12', 'Medical_Keyword_13', 'Medical_Keyword_14',
+                        'Medical_Keyword_15', 'Medical_Keyword_16', 'Medical_Keyword_17', 'Medical_Keyword_18',
+                        'Medical_Keyword_19', 'Medical_Keyword_20', 'Medical_Keyword_21', 'Medical_Keyword_22',
+                        'Medical_Keyword_23', 'Medical_Keyword_24', 'Medical_Keyword_25', 'Medical_Keyword_26',
+                        'Medical_Keyword_27', 'Medical_Keyword_28', 'Medical_Keyword_29', 'Medical_Keyword_30',
+                        'Medical_Keyword_31', 'Medical_Keyword_32', 'Medical_Keyword_33', 'Medical_Keyword_34',
+                        'Medical_Keyword_35', 'Medical_Keyword_36', 'Medical_Keyword_37', 'Medical_Keyword_38',
+                        'Medical_Keyword_39', 'Medical_Keyword_40', 'Medical_Keyword_41', 'Medical_Keyword_42',
+                        'Medical_Keyword_43', 'Medical_Keyword_44', 'Medical_Keyword_45', 'Medical_Keyword_46',
+                        'Medical_Keyword_47', 'Medical_Keyword_48']
+
+
 
         # todo: 特征应该如何处理？能否利用现有特征构造新的特征？
         # 对于空值，稠密特征使用中位数填充，稀疏特征使用最频繁值填充
@@ -71,7 +101,6 @@ class DataPreprocessor:
             df[[col]] = self.sparse_imputers[col].transform(df[[col]])
         for col in self.encode_cols:
             df[col] = self.encoders[col].transform(df[col])
-        
 
         return df
 
@@ -124,11 +153,16 @@ def load_data(data_path):
     if preprocessor is None:
         # todo: 选择哪些特征作为训练特征？选择的策略是什么？
         # 修改use_cols，可选择需要使用的训练特征
-        use_cols = ['Product_Info_2', 'Product_Info_3', 'Product_Info_4', 'Product_Info_5', 'Product_Info_6',
-                    'Ins_Age', 'Wt', 'BMI',
-                    'Employment_Info_1', 'Employment_Info_2', 'Employment_Info_5', 'Employment_Info_6',
-                    'Medical_History_4', 'Medical_History_6', 'Medical_History_15', 'Medical_History_23', 'Medical_History_39',
-                    'Medical_Keyword_3', 'Medical_Keyword_15', 'Medical_Keyword_48']
+        use_cols = ['Product_Info_2', 'Product_Info_6', 'Employment_Info_3', 'Employment_Info_5', 'InsuredInfo_1',
+                    'InsuredInfo_3', 'InsuredInfo_6', 'Insurance_History_1', 'Insurance_History_2',
+                    'Insurance_History_3', 'Insurance_History_4', 'Insurance_History_7', 'Insurance_History_8',
+                    'Insurance_History_9', 'Family_Hist_1', 'Medical_History_4', 'Medical_History_6',
+                    'Medical_History_9', 'Medical_History_13', 'Medical_History_16', 'Medical_History_18',
+                    'Medical_History_22', 'Medical_History_23', 'Medical_History_30', 'Medical_History_33',
+                    'Medical_History_39', 'Medical_History_41', 'Medical_Keyword_3', 'Medical_Keyword_15',
+                    'Medical_Keyword_23', 'Medical_Keyword_25', 'Medical_Keyword_48',
+                    'Product_Info_3', 'Product_Info_4', 'Ins_Age', 'Wt', 'BMI', 'Employment_Info_1',
+                    'Employment_Info_2', 'Employment_Info_4', 'Employment_Info_6', 'Medical_History_1']
         preprocessor = DataPreprocessor(use_cols)
         preprocessor.fit(df)  # 【重要】在实际应用中，是无法知道test数据全局分布的，所以fit只能在train数据上进行；利用train数据的分布，对test数据进行transform
 
