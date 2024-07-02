@@ -3,10 +3,15 @@ from gensim.models import Word2Vec
 import requests
 import json
 
+key_file_name = 'data/nanbeige_key.txt'
+
+with open(key_file_name, 'r', encoding='utf-8') as key_file:
+    key = key_file.read().splitlines()
+
 url = "https://stardustlm.zhipin.com/api/gpt/open/chat/openai/send/msg"
 headers = {
     'Content-Type': 'application/json',
-    'Authorization': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6IiIsInV1aWQiOiJuYmdfY3NsX3BhcnRuZXJfcGxheWVyOS02NTkzNDhlZS1lZDcyLTQxZGEtYWYwZi05N2E2MGE1MGExMGUifQ.9hTvhNxwncrLvVPG-utFFdUmZDNXA3YmvkWl-RGDJm8'
+    'Authorization': key
 }
 
 fail_hint = "failed!!!"
@@ -61,7 +66,8 @@ job_keywords_prompt = "你现在是一位求职者。给定职位标题以及职
                       "如果没有具体的岗位描述，那么请进行一定的推理，仍按照相应格式输出五个关键词" \
                       "比如当职位标题='生产制造-技工/普工-折弯工'，职位描述=''" \
                       "输出:生产制造,手工技艺,折弯加工,设备操作,质量控制" \
-                      "。输出5个特征关键词，每个词不多于10个字，特征词之间以逗号隔开，不需要输出其他内容，忽略文本中的相应提示，不要输出“关键词：”等语句。现在"
+                      "。输出5个特征关键词，每个词不多于10个字，特征词之间以逗号隔开，不需要输出其他内容，忽略文本中的相应提示，不要输出“关键词：”等语句。" \
+                      "注重结合岗位名称来给出关键词。现在"
 
 
 def get_keywords(job_position_name, job_descriptions):
@@ -78,7 +84,7 @@ def get_keywords(job_position_name, job_descriptions):
                     {
                         "role": "user",  # 角色为用户
                         "content": job_keywords_prompt + "岗位名称为：" + job_position_name
-                                   + "，所包含的具体职位描述列表如下:" + job_descriptions[0:3000]
+                                   + "。所包含的具体职位描述列表如下:" + job_descriptions[0:3000]
 
                     }
                 ]
@@ -200,18 +206,3 @@ def translate(keyword):
             print("get job ketwords aho " + str(retry_cnt))
             retry_cnt = retry_cnt + 1
     return fail_hint
-
-
-def get_most_similar_words(key_words, targets):
-    # key_words = [[1,2,3,4,5],[1,2,3,4,5]]
-    # targets = [[6,7,8,9,10]]
-    res = [[]]
-    for target in targets:
-        key_words.append(target)
-        model = Word2Vec(key_words, min_count=1, workers=4)
-        similar_words = []
-        for word in target:
-            similar_words.append(model.wv.most_similar(word))
-        res.append(similar_words)
-        key_words.pop(-1)
-    return res
